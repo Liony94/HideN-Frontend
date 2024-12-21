@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Image,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -62,7 +63,7 @@ const Matching = () => {
     await findNewMatch();
   };
 
-  const handleAcceptMatch = async () => {
+  const handleSendMatchRequest = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
 
@@ -71,41 +72,7 @@ const Matching = () => {
       }
 
       const response = await fetch(
-        `${API_URL}/api/matching/accept/${currentMatch._id}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      console.log("Statut de la réponse accept:", response.status);
-      const responseData = await response.text();
-      console.log("Réponse brute accept:", responseData);
-
-      if (!response.ok) {
-        throw new Error(`Erreur ${response.status}: ${responseData}`);
-      }
-
-      navigation.navigate("Chat", { matchId: currentMatch._id });
-    } catch (err) {
-      console.error("Erreur accept:", err);
-      setError(err.message || "Erreur lors de l'acceptation du match");
-    }
-  };
-
-  const handleDeclineMatch = async () => {
-    try {
-      const token = await AsyncStorage.getItem("userToken");
-
-      if (!token) {
-        throw new Error("Vous devez être connecté");
-      }
-
-      const response = await fetch(
-        `${API_URL}/api/matching/decline/${currentMatch._id}`,
+        `${API_URL}/api/matching/request/${currentMatch._id}`,
         {
           method: "POST",
           headers: {
@@ -120,12 +87,21 @@ const Matching = () => {
         throw new Error(`Erreur ${response.status}: ${responseData}`);
       }
 
-      await findNewMatch();
+      Alert.alert("Succès", "Votre demande de match a été envoyée !", [
+        {
+          text: "OK",
+          onPress: () => {
+            setCurrentMatch(null);
+            setIsSearching(false);
+          },
+        },
+      ]);
     } catch (err) {
-      console.error("Erreur decline:", err);
-      setError(err.message || "Erreur lors du refus du match");
-      setCurrentMatch(null);
-      setIsSearching(false);
+      console.error("Erreur lors de l'envoi de la demande:", err);
+      Alert.alert(
+        "Erreur",
+        err.message || "Une erreur est survenue lors de l'envoi de la demande"
+      );
     }
   };
 
@@ -174,16 +150,19 @@ const Matching = () => {
             )}
             <View style={styles.actionButtons}>
               <TouchableOpacity
-                style={styles.declineButton}
-                onPress={handleDeclineMatch}
+                style={styles.sendRequestButton}
+                onPress={handleSendMatchRequest}
               >
-                <Text style={styles.declineButtonText}>Refuser</Text>
+                <Text style={styles.buttonText}>Envoyer une demande</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.acceptButton}
-                onPress={handleAcceptMatch}
+                style={styles.skipButton}
+                onPress={() => {
+                  setCurrentMatch(null);
+                  startSearching();
+                }}
               >
-                <Text style={styles.acceptButtonText}>Accepter</Text>
+                <Text style={styles.buttonText}>Passer</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -277,27 +256,21 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: 20,
   },
-  acceptButton: {
-    backgroundColor: "#4CAF50",
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    width: "45%",
-  },
-  acceptButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  declineButton: {
+  sendRequestButton: {
     backgroundColor: "#FF4B6E",
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 25,
     width: "45%",
   },
-  declineButtonText: {
+  skipButton: {
+    backgroundColor: "#666",
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+    width: "45%",
+  },
+  buttonText: {
     color: "#FFFFFF",
     fontSize: 18,
     textAlign: "center",

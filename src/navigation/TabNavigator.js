@@ -1,13 +1,51 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Home from "../views/screens/Home";
 import Conversations from "../views/screens/Conversations";
+import Matches from "../views/screens/Matches";
 
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const Tab = createBottomTabNavigator();
 
 const TabNavigator = () => {
+  const [hasMatchRequests, setHasMatchRequests] = useState(false);
+
+  useEffect(() => {
+    checkPendingMatches();
+
+    // Vérifier toutes les 30 secondes
+    const interval = setInterval(checkPendingMatches, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const checkPendingMatches = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const response = await fetch(`${API_URL}/api/matching/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la vérification des matchs");
+      }
+
+      const data = await response.json();
+      const hasPendingRequests = data.matches.some(
+        (match) => match.status === "pending" && !match.isInitiator
+      );
+
+      setHasMatchRequests(hasPendingRequests);
+    } catch (error) {
+      console.error("Erreur lors de la vérification des matchs:", error);
+    }
+  };
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -51,6 +89,31 @@ const TabNavigator = () => {
             </View>
           ),
         })}
+      />
+      <Tab.Screen
+        name="Matches"
+        component={Matches}
+        options={{
+          tabBarLabel: "Matchs",
+          tabBarIcon: ({ color, size }) => (
+            <View>
+              <MaterialIcons name="favorite" size={size} color={color} />
+              {hasMatchRequests && (
+                <View
+                  style={{
+                    position: "absolute",
+                    right: -6,
+                    top: -3,
+                    backgroundColor: "#4CAF50",
+                    borderRadius: 6,
+                    width: 12,
+                    height: 12,
+                  }}
+                />
+              )}
+            </View>
+          ),
+        }}
       />
     </Tab.Navigator>
   );
