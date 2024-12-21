@@ -20,6 +20,10 @@ const Home = () => {
     navigation.navigate("UserProfile");
   };
 
+  const handleGoToConversations = () => {
+    navigation.navigate("Conversations");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -111,6 +115,18 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#FFFFFF",
     fontSize: 18,
+    fontWeight: "600",
+  },
+  conversationsButton: {
+    backgroundColor: "#2A2A2A",
+    paddingVertical: 15,
+    borderRadius: 25,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  conversationsButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
     fontWeight: "600",
   },
   profileButton: {

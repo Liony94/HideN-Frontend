@@ -20,9 +20,7 @@ const Matching = () => {
   const [currentMatch, setCurrentMatch] = useState(null);
   const [error, setError] = useState(null);
 
-  const startSearching = async () => {
-    setIsSearching(true);
-    setError(null);
+  const findNewMatch = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
 
@@ -30,7 +28,6 @@ const Matching = () => {
         throw new Error("Vous devez être connecté");
       }
 
-      console.log("Début de la recherche...");
       const response = await fetch(`${API_URL}/api/matching/find`, {
         method: "GET",
         headers: {
@@ -39,16 +36,13 @@ const Matching = () => {
         },
       });
 
-      console.log("Statut de la réponse:", response.status);
       const responseData = await response.text();
-      console.log("Réponse brute:", responseData);
 
       if (!response.ok) {
         throw new Error(`Erreur ${response.status}: ${responseData}`);
       }
 
       const data = JSON.parse(responseData);
-      console.log("Données reçues:", data);
 
       if (!data.match) {
         throw new Error("Aucun match trouvé");
@@ -56,10 +50,16 @@ const Matching = () => {
 
       setCurrentMatch(data.match);
     } catch (err) {
-      console.error("Erreur complète:", err);
+      console.error("Erreur recherche:", err);
       setError(err.message || "Une erreur est survenue lors de la recherche");
       setIsSearching(false);
     }
+  };
+
+  const startSearching = async () => {
+    setIsSearching(true);
+    setError(null);
+    await findNewMatch();
   };
 
   const handleAcceptMatch = async () => {
@@ -115,19 +115,17 @@ const Matching = () => {
         }
       );
 
-      console.log("Statut de la réponse decline:", response.status);
-      const responseData = await response.text();
-      console.log("Réponse brute decline:", responseData);
-
       if (!response.ok) {
+        const responseData = await response.text();
         throw new Error(`Erreur ${response.status}: ${responseData}`);
       }
 
-      setCurrentMatch(null);
-      setIsSearching(false);
+      await findNewMatch();
     } catch (err) {
       console.error("Erreur decline:", err);
       setError(err.message || "Erreur lors du refus du match");
+      setCurrentMatch(null);
+      setIsSearching(false);
     }
   };
 
