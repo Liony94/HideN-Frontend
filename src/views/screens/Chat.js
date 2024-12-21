@@ -54,11 +54,10 @@ const Chat = ({ route, navigation }) => {
     try {
       const token = await AsyncStorage.getItem("userToken");
       const userId = JSON.parse(atob(token.split(".")[1])).userId;
-      console.log("UserId pour socket:", userId);
 
       socketRef.current = io(API_URL, {
         auth: {
-          token: `Bearer ${token}`,
+          token: token,
         },
         transports: ["websocket"],
         reconnection: true,
@@ -69,31 +68,28 @@ const Chat = ({ route, navigation }) => {
       socketRef.current.on("connect", () => {
         console.log("Socket connected successfully");
         socketRef.current.emit("join_chat", matchId);
+        console.log("Joined chat room:", matchId);
       });
 
       socketRef.current.on("new_message", (message) => {
-        console.log("Message reçu:", message);
-        console.log("SenderId du message:", message.senderId);
-        console.log("UserId local:", userId);
-
-        setMessages((prevMessages) => [
-          {
-            ...message,
-            isSender: message.senderId === userId,
-          },
-          ...prevMessages,
-        ]);
-
-        if (message.senderId !== userId) {
-          markMessagesAsRead();
-          const parent = navigation.getParent();
-          if (parent) {
-            parent.emit({
-              type: "newMessage",
-              data: { matchId, senderId: message.senderId },
-            });
+        console.log("Message reçu via socket:", message);
+        setMessages((prevMessages) => {
+          const messageExists = prevMessages.some(
+            (msg) => msg._id === message._id
+          );
+          if (messageExists) {
+            return prevMessages;
           }
-        }
+
+          return [
+            {
+              ...message,
+              isSender: message.senderId === userId,
+              createdAt: new Date(message.createdAt).toISOString(),
+            },
+            ...prevMessages,
+          ];
+        });
       });
 
       socketRef.current.on("user_joined", (data) => {
@@ -105,15 +101,11 @@ const Chat = ({ route, navigation }) => {
       });
 
       socketRef.current.on("connect_error", (error) => {
-        console.error("Erreur de connexion socket:", error);
-        Alert.alert(
-          "Erreur de connexion",
-          "Impossible de se connecter au chat. Veuillez réessayer."
-        );
+        console.error("Socket connection error:", error);
       });
 
-      socketRef.current.on("error", (error) => {
-        console.error("Erreur socket:", error);
+      socketRef.current.onAny((event, ...args) => {
+        console.log("Socket event received:", event, args);
       });
 
       socketRef.current.on("disconnect", (reason) => {
@@ -124,7 +116,7 @@ const Chat = ({ route, navigation }) => {
         }
       });
     } catch (error) {
-      console.error("Erreur lors de l'initialisation du socket:", error);
+      console.error("Socket initialization error:", error);
       Alert.alert("Erreur", "Impossible d'initialiser la connexion au chat");
     }
   };
@@ -271,8 +263,6 @@ const Chat = ({ route, navigation }) => {
     try {
       const token = await AsyncStorage.getItem("userToken");
       const messageToSend = newMessage.trim();
-
-      // Vider le champ de message immédiatement pour une meilleure UX
       setNewMessage("");
 
       const response = await fetch(`${API_URL}/api/messages`, {
@@ -290,16 +280,12 @@ const Chat = ({ route, navigation }) => {
       if (!response.ok) {
         throw new Error("Erreur lors de l'envoi du message");
       }
-
-      // Ne pas ajouter le message ici, il sera reçu via le socket
-      // Le backend enverra le message via socket.io
     } catch (error) {
       console.error("Erreur lors de l'envoi du message:", error);
       Alert.alert(
         "Erreur",
         "Impossible d'envoyer le message. Veuillez réessayer."
       );
-      // Restaurer le message en cas d'erreur
       setNewMessage(messageToSend);
     }
   };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -19,8 +19,16 @@ const DEFAULT_AVATAR = "https://via.placeholder.com/50";
 const Conversations = ({ navigation, route }) => {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
+    const initializeUserId = async () => {
+      const token = await AsyncStorage.getItem("userToken");
+      const id = JSON.parse(atob(token.split(".")[1])).userId;
+      setUserId(id);
+    };
+
+    initializeUserId();
     fetchConversations();
 
     const unsubscribeFocus = navigation.addListener("focus", () => {
@@ -30,10 +38,10 @@ const Conversations = ({ navigation, route }) => {
     const unsubscribeNewMessage = navigation.addListener(
       "newMessage",
       ({ data }) => {
-        if (data?.matchId) {
+        if (data?.matchId && userId) {
           setConversations((prevConversations) =>
             prevConversations.map((conv) =>
-              conv.matchId === data.matchId
+              conv.matchId === data.matchId && data.senderId !== userId
                 ? { ...conv, hasUnread: true }
                 : conv
             )
@@ -65,7 +73,7 @@ const Conversations = ({ navigation, route }) => {
       unsubscribeParams();
       unsubscribeNewMessage();
     };
-  }, [navigation, route.params]);
+  }, [navigation, route.params, userId]);
 
   const handleConversationPress = async (matchId) => {
     setConversations((prevConversations) =>
@@ -80,6 +88,8 @@ const Conversations = ({ navigation, route }) => {
   const fetchConversations = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
+      const userId = JSON.parse(atob(token.split(".")[1])).userId;
+
       const response = await fetch(`${API_URL}/api/messages/all`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -91,14 +101,48 @@ const Conversations = ({ navigation, route }) => {
       }
 
       const data = await response.json();
-      const formattedData = data.map((conv) => ({
-        ...conv,
-        hasUnread: conv.unreadCount > 0,
-      }));
+
+      const conversationsMap = new Map();
+      data.forEach((conv) => {
+        const key = conv.matchId;
+        if (
+          !conversationsMap.has(key) ||
+          new Date(conv.lastMessage.createdAt) >
+            new Date(conversationsMap.get(key).lastMessage.createdAt)
+        ) {
+          const otherUser =
+            conv.matchInfo._id === userId
+              ? conv.lastMessage.senderId === userId
+                ? { ...conv.matchInfo, _id: conv.lastMessage.receiverId }
+                : { ...conv.matchInfo, _id: conv.lastMessage.senderId }
+              : conv.matchInfo;
+
+          conversationsMap.set(key, {
+            ...conv,
+            matchInfo: otherUser,
+          });
+        }
+      });
+
+      const formattedData = Array.from(conversationsMap.values()).map(
+        (conv) => ({
+          ...conv,
+          hasUnread:
+            conv.unreadCount > 0 && conv.lastMessage.senderId !== userId,
+          userId: userId,
+        })
+      );
+
+      formattedData.sort(
+        (a, b) =>
+          new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
+      );
 
       setConversations(formattedData);
 
-      const hasUnreadMessages = formattedData.some((conv) => conv.hasUnread);
+      const hasUnreadMessages = formattedData.some(
+        (conv) => conv.unreadCount > 0 && conv.lastMessage.senderId !== userId
+      );
       navigation.getParent()?.setParams({ hasUnread: hasUnreadMessages });
     } catch (error) {
       console.error("Erreur lors de la récupération des conversations:", error);
@@ -124,40 +168,47 @@ const Conversations = ({ navigation, route }) => {
     });
   };
 
-  const renderConversation = ({ item }) => (
-    <TouchableOpacity
-      style={styles.conversationItem}
-      onPress={() => handleConversationPress(item.matchId)}
-    >
-      {item.matchInfo.profilePicture ? (
-        <Image
-          source={{ uri: item.matchInfo.profilePicture }}
-          style={styles.avatar}
-        />
-      ) : (
-        <View style={[styles.avatar, styles.defaultAvatar]}>
-          <MaterialIcons name="person" size={30} color="#666" />
+  const getUniqueKey = (item) => {
+    return item.matchId;
+  };
+
+  const renderConversation = useCallback(
+    ({ item }) => (
+      <TouchableOpacity
+        style={styles.conversationItem}
+        onPress={() => handleConversationPress(item.matchId)}
+      >
+        {item.matchInfo.profilePicture ? (
+          <Image
+            source={{ uri: item.matchInfo.profilePicture }}
+            style={styles.avatar}
+          />
+        ) : (
+          <View style={[styles.avatar, styles.defaultAvatar]}>
+            <MaterialIcons name="person" size={30} color="#666" />
+          </View>
+        )}
+        <View style={styles.conversationContent}>
+          <View style={styles.conversationHeader}>
+            <Text style={styles.name}>
+              {item.matchInfo.firstName} {item.matchInfo.lastName}
+            </Text>
+            <Text style={styles.date}>
+              {formatDate(item.lastMessage.createdAt)}
+            </Text>
+          </View>
+          <View style={styles.messageContainer}>
+            <Text style={styles.lastMessage} numberOfLines={1}>
+              {item.lastMessage.content}
+            </Text>
+            {item.hasUnread &&
+              item.lastMessage.senderId !== userId &&
+              userId && <View style={styles.unreadDot} />}
+          </View>
         </View>
-      )}
-      <View style={styles.conversationContent}>
-        <View style={styles.conversationHeader}>
-          <Text style={styles.name}>
-            {item.matchInfo.firstName} {item.matchInfo.lastName}
-          </Text>
-          <Text style={styles.date}>
-            {formatDate(item.lastMessage.createdAt)}
-          </Text>
-        </View>
-        <View style={styles.messageContainer}>
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage.content}
-          </Text>
-          {item.hasUnread && !item.lastMessage.isSender && (
-            <View style={styles.unreadDot} />
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    ),
+    [userId]
   );
 
   if (loading) {
@@ -173,12 +224,14 @@ const Conversations = ({ navigation, route }) => {
       <View style={styles.header}>
         <Text style={styles.title}>Messages</Text>
       </View>
-      <FlatList
-        data={conversations}
-        renderItem={renderConversation}
-        keyExtractor={(item) => item.matchId}
-        contentContainerStyle={styles.listContainer}
-      />
+      {userId && (
+        <FlatList
+          data={conversations}
+          renderItem={renderConversation}
+          keyExtractor={getUniqueKey}
+          contentContainerStyle={styles.listContainer}
+        />
+      )}
     </SafeAreaView>
   );
 };

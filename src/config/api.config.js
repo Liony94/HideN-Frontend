@@ -7,3 +7,12 @@ export const API_ENDPOINTS = {
   USERS: "/users",
   PRODUCTS: "/products",
 };
+
+export const sendMessage = async (messageData) => {
+  try {
+    const response = await axios.post(`${API_URL}/messages`, messageData);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
