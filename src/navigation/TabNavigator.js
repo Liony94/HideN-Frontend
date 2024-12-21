@@ -4,7 +4,6 @@ import { View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Home from "../views/screens/Home";
-import Conversations from "../views/screens/Conversations";
 import Matches from "../views/screens/Matches";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -12,12 +11,17 @@ const Tab = createBottomTabNavigator();
 
 const TabNavigator = () => {
   const [hasMatchRequests, setHasMatchRequests] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
   useEffect(() => {
     checkPendingMatches();
+    checkUnreadMessages();
 
-    // Vérifier toutes les 30 secondes
-    const interval = setInterval(checkPendingMatches, 30000);
+    // Vérifier périodiquement les nouveaux messages et matchs
+    const interval = setInterval(() => {
+      checkPendingMatches();
+      checkUnreadMessages();
+    }, 30000); // Vérifier toutes les 30 secondes
 
     return () => clearInterval(interval);
   }, []);
@@ -36,13 +40,35 @@ const TabNavigator = () => {
       }
 
       const data = await response.json();
+      const userId = JSON.parse(atob(token.split(".")[1])).userId;
+
       const hasPendingRequests = data.matches.some(
-        (match) => match.status === "pending" && !match.isInitiator
+        (match) => match.status === "pending" && match.initiator._id !== userId
       );
 
       setHasMatchRequests(hasPendingRequests);
     } catch (error) {
       console.error("Erreur lors de la vérification des matchs:", error);
+    }
+  };
+
+  const checkUnreadMessages = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const response = await fetch(`${API_URL}/api/messages/unread/count`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la vérification des messages");
+      }
+
+      const data = await response.json();
+      setHasUnreadMessages(data.hasUnread);
+    } catch (error) {
+      console.error("Erreur lors de la vérification des messages:", error);
     }
   };
 
@@ -66,31 +92,6 @@ const TabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="ConversationsTab"
-        component={Conversations}
-        options={({ route }) => ({
-          tabBarLabel: "Messages",
-          tabBarIcon: ({ color, size }) => (
-            <View>
-              <MaterialIcons name="chat" size={size} color={color} />
-              {route.params?.hasUnread && (
-                <View
-                  style={{
-                    position: "absolute",
-                    right: -6,
-                    top: -3,
-                    backgroundColor: "#4CAF50",
-                    borderRadius: 6,
-                    width: 12,
-                    height: 12,
-                  }}
-                />
-              )}
-            </View>
-          ),
-        })}
-      />
-      <Tab.Screen
         name="Matches"
         component={Matches}
         options={{
@@ -98,7 +99,7 @@ const TabNavigator = () => {
           tabBarIcon: ({ color, size }) => (
             <View>
               <MaterialIcons name="favorite" size={size} color={color} />
-              {hasMatchRequests && (
+              {(hasMatchRequests || hasUnreadMessages) && (
                 <View
                   style={{
                     position: "absolute",

@@ -86,10 +86,10 @@ const Matches = ({ navigation }) => {
   const handleAcceptMatch = async (matchId) => {
     try {
       const token = await AsyncStorage.getItem("userToken");
-      console.log("ID du match à accepter:", matchId);
-      console.log("Type de l'ID:", typeof matchId);
+      console.log("Tentative d'acceptation du match - ID:", matchId);
 
       const id = matchId.toString();
+      console.log("URL de la requête:", `${API_URL}/api/matching/accept/${id}`);
 
       const response = await fetch(`${API_URL}/api/matching/accept/${id}`, {
         method: "POST",
@@ -99,11 +99,28 @@ const Matches = ({ navigation }) => {
         },
       });
 
+      // Log de la réponse brute pour debug
+      const responseText = await response.text();
+      console.log("Réponse brute:", responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Erreur de parsing:", parseError);
+        console.error("Contenu reçu:", responseText);
+        throw new Error("Réponse invalide du serveur");
+      }
+
       console.log("Status de la réponse:", response.status);
-      const data = await response.json();
-      console.log("Réponse du serveur:", data);
+      console.log("Données reçues:", data);
 
       if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error("Vous n'êtes pas autorisé à accepter ce match");
+        } else if (response.status === 404) {
+          throw new Error("Match non trouvé");
+        }
         throw new Error(
           data.message || "Erreur lors de l'acceptation du match"
         );
@@ -113,10 +130,10 @@ const Matches = ({ navigation }) => {
       await fetchMatches();
     } catch (error) {
       console.error("Erreur détaillée lors de l'acceptation:", error);
+      console.error("Stack trace:", error.stack);
       Alert.alert(
         "Erreur",
-        error.message ||
-          "Une erreur est survenue lors de l'acceptation du match"
+        error.message || "Impossible d'accepter le match, veuillez réessayer"
       );
     }
   };
@@ -162,17 +179,17 @@ const Matches = ({ navigation }) => {
     if (!item || !item._id) return null;
 
     const isPending = item.status === "pending";
-    const isRecipient =
+    const canAcceptMatch =
       isPending &&
       item.initiator?._id !== userId &&
       item.users.some((user) => user._id === userId);
 
-    // Trouver l'autre utilisateur
     const otherUser =
       item.users?.find((user) => user._id !== userId) || item.otherUser;
 
-    return (
-      <View style={styles.matchItem}>
+    // Contenu commun du match
+    const MatchContent = () => (
+      <>
         <View style={styles.avatarContainer}>
           {otherUser?.profilePicture ? (
             <Image
@@ -189,28 +206,55 @@ const Matches = ({ navigation }) => {
           <Text style={styles.name}>
             {otherUser?.firstName} {otherUser?.lastName}
           </Text>
-          <Text style={styles.status}>
-            {isPending ? "Demande reçue" : "Match accepté"}
+          <Text style={styles.status} numberOfLines={1}>
+            {isPending
+              ? "Demande reçue"
+              : item.lastMessage
+              ? item.lastMessage.content
+              : "Commencez la conversation !"}
           </Text>
         </View>
-        {isPending && isRecipient && (
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.acceptButton}
-              onPress={() => handleAcceptMatch(item._id)}
-            >
-              <Text style={styles.buttonText}>Accepter</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.declineButton}
-              onPress={() => handleDeclineMatch(item._id)}
-            >
-              <Text style={styles.buttonText}>Refuser</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+        {item.hasUnread && !isPending && <View style={styles.unreadDot} />}
+      </>
     );
+
+    // Rendu différent selon le statut du match
+    if (item.status === "accepted") {
+      return (
+        <TouchableOpacity
+          style={[styles.matchItem, styles.acceptedMatch]}
+          onPress={() => navigation.navigate("Chat", { matchId: item._id })}
+        >
+          <MatchContent />
+          <View style={styles.chatIcon}>
+            <MaterialIcons name="chat" size={24} color="#666" />
+          </View>
+        </TouchableOpacity>
+      );
+    } else {
+      // Match en attente : afficher les boutons d'action
+      return (
+        <View style={styles.matchItem}>
+          <MatchContent />
+          {canAcceptMatch && (
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={styles.acceptButton}
+                onPress={() => handleAcceptMatch(item._id)}
+              >
+                <Text style={styles.buttonText}>Accepter</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.declineButton}
+                onPress={() => handleDeclineMatch(item._id)}
+              >
+                <Text style={styles.buttonText}>Refuser</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      );
+    }
   };
 
   const filteredMatches = matches.filter((match) => {
@@ -374,6 +418,7 @@ const styles = StyleSheet.create({
   status: {
     fontSize: 14,
     color: "#999",
+    marginTop: 4,
   },
   actions: {
     flexDirection: "row",
@@ -406,6 +451,23 @@ const styles = StyleSheet.create({
     color: "#999",
     fontSize: 16,
     textAlign: "center",
+  },
+  acceptedMatch: {
+    backgroundColor: "#222",
+  },
+  chatIcon: {
+    padding: 10,
+    marginLeft: 10,
+  },
+  unreadDot: {
+    position: "absolute",
+    right: 40, // Ajuster selon le design
+    top: "50%",
+    transform: [{ translateY: -3 }],
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#4CAF50",
   },
 });
 

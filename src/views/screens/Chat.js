@@ -17,23 +17,29 @@ import { io } from "socket.io-client";
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const Chat = ({ route, navigation }) => {
-  const { matchId } = route.params;
+  const { matchId, otherUser } = route.params;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [matchInfo, setMatchInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
   const socketRef = useRef(null);
   const [isMatchAccepted, setIsMatchAccepted] = useState(false);
 
   useEffect(() => {
-    const initializeChat = async () => {
-      await acceptMatch();
-      await fetchMatchInfo();
-      await fetchMessages();
-      await markMessagesAsRead();
-      connectSocket();
-    };
+    if (otherUser) {
+      setMatchInfo({
+        firstName: otherUser.firstName,
+        lastName: otherUser.lastName,
+        profilePicture: otherUser.profilePicture,
+      });
+      setLoading(false);
+    } else {
+      fetchMatchInfo();
+    }
 
-    initializeChat();
+    fetchMessages();
+    setupSocket();
+    markMessagesAsRead();
 
     return () => {
       if (socketRef.current) {
@@ -48,9 +54,9 @@ const Chat = ({ route, navigation }) => {
         });
       }
     };
-  }, []);
+  }, [matchId]);
 
-  const connectSocket = async () => {
+  const setupSocket = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
       const userId = JSON.parse(atob(token.split(".")[1])).userId;
@@ -112,7 +118,7 @@ const Chat = ({ route, navigation }) => {
         console.log("Socket déconnecté, raison:", reason);
         if (reason === "io server disconnect") {
           // Le serveur a forcé la déconnexion
-          connectSocket(); // Tentative de reconnexion
+          setupSocket(); // Tentative de reconnexion
         }
       });
     } catch (error) {
@@ -174,60 +180,41 @@ const Chat = ({ route, navigation }) => {
       const token = await AsyncStorage.getItem("userToken");
       console.log("Récupération des infos pour le match:", matchId);
 
-      const response = await fetch(`${API_URL}/api/matching/${matchId}`, {
+      const response = await fetch(`${API_URL}/api/messages/match/${matchId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
         },
       });
 
-      const responseText = await response.text();
-      console.log("Réponse brute fetchMatchInfo:", responseText);
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Erreur de parsing:", parseError);
-        console.error("Contenu reçu:", responseText);
-        throw new Error("Réponse invalide du serveur");
-      }
+      const data = await response.json();
 
       if (!response.ok) {
-        if (response.status === 403) {
-          navigation.goBack();
-          throw new Error("Vous n'avez pas accès à cette conversation");
-        } else if (response.status === 404) {
-          throw new Error("Match non trouvé ou inactif");
-        }
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        throw new Error(
+          data.message || "Erreur lors de la récupération des informations"
+        );
       }
 
-      console.log("Infos du match reçues:", data);
-
       setMatchInfo({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        age: data.age,
-        profilePicture: data.profilePicture,
-        interests: data.interests,
+        firstName: data.otherUser.firstName,
+        lastName: data.otherUser.lastName,
+        profilePicture: data.otherUser.profilePicture,
       });
     } catch (error) {
-      console.error(
-        "Erreur lors de la récupération des infos du match:",
-        error
-      );
+      console.error("Erreur lors de la récupération des infos:", error);
       Alert.alert(
         "Erreur",
-        error.message || "Impossible de récupérer les informations du match"
+        "Impossible de récupérer les informations de la conversation"
       );
+      navigation.goBack();
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchMessages = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
-      const userId = JSON.parse(atob(token.split(".")[1])).userId;
+      console.log("Récupération des messages pour le match:", matchId);
 
       const response = await fetch(`${API_URL}/api/messages/${matchId}`, {
         headers: {
@@ -235,13 +222,16 @@ const Chat = ({ route, navigation }) => {
         },
       });
 
+      const data = await response.json();
+      console.log("Messages reçus:", data);
+
       if (!response.ok) {
-        throw new Error("Erreur lors de la récupération des messages");
+        throw new Error(
+          data.message || "Erreur lors de la récupération des messages"
+        );
       }
 
-      const data = await response.json();
-      console.log("Messages récupérés:", data);
-
+      const userId = JSON.parse(atob(token.split(".")[1])).userId;
       const formattedMessages = data.map((message) => ({
         ...message,
         isSender: message.senderId === userId,
@@ -249,7 +239,10 @@ const Chat = ({ route, navigation }) => {
 
       setMessages(formattedMessages);
     } catch (error) {
-      console.error("Erreur lors de la récupération des messages:", error);
+      console.error(
+        "Erreur détaillée lors de la récupération des messages:",
+        error
+      );
       Alert.alert(
         "Erreur",
         "Impossible de charger les messages. Veuillez réessayer."
@@ -265,6 +258,7 @@ const Chat = ({ route, navigation }) => {
       const messageToSend = newMessage.trim();
       setNewMessage("");
 
+      console.log("Envoi du message pour le match:", matchId);
       const response = await fetch(`${API_URL}/api/messages`, {
         method: "POST",
         headers: {
@@ -277,16 +271,21 @@ const Chat = ({ route, navigation }) => {
         }),
       });
 
+      const data = await response.json();
+      console.log("Réponse du serveur:", data);
+
       if (!response.ok) {
-        throw new Error("Erreur lors de l'envoi du message");
+        throw new Error(data.message || "Erreur lors de l'envoi du message");
       }
+
+      // Le message sera ajouté via le socket
     } catch (error) {
-      console.error("Erreur lors de l'envoi du message:", error);
+      console.error("Erreur détaillée lors de l'envoi:", error);
       Alert.alert(
         "Erreur",
-        "Impossible d'envoyer le message. Veuillez réessayer."
+        error.message || "Impossible d'envoyer le message. Veuillez réessayer."
       );
-      setNewMessage(messageToSend);
+      setNewMessage(messageToSend); // Restaurer le message en cas d'erreur
     }
   };
 

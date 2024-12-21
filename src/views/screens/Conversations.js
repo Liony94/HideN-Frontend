@@ -90,62 +90,61 @@ const Conversations = ({ navigation, route }) => {
       const token = await AsyncStorage.getItem("userToken");
       const userId = JSON.parse(atob(token.split(".")[1])).userId;
 
+      console.log(
+        "Tentative de récupération des conversations pour userId:",
+        userId
+      );
+
+      console.log(
+        "Tentative de récupération des conversations pour userId:",
+        userId
+      );
+
       const response = await fetch(`${API_URL}/api/messages/all`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
+      const data = await response.text();
+      console.log("Réponse brute du serveur:", data);
+
       if (!response.ok) {
-        throw new Error("Erreur lors de la récupération des conversations");
+        throw new Error(`Erreur serveur: ${response.status} - ${data}`);
       }
 
-      const data = await response.json();
+      const conversations = JSON.parse(data);
+      console.log("Conversations parsées:", conversations);
 
-      const conversationsMap = new Map();
-      data.forEach((conv) => {
-        const key = conv.matchId;
-        if (
-          !conversationsMap.has(key) ||
-          new Date(conv.lastMessage.createdAt) >
-            new Date(conversationsMap.get(key).lastMessage.createdAt)
-        ) {
-          const otherUser =
-            conv.matchInfo._id === userId
-              ? conv.lastMessage.senderId === userId
-                ? { ...conv.matchInfo, _id: conv.lastMessage.receiverId }
-                : { ...conv.matchInfo, _id: conv.lastMessage.senderId }
-              : conv.matchInfo;
-
-          conversationsMap.set(key, {
-            ...conv,
-            matchInfo: otherUser,
-          });
-        }
+      // Formater les conversations pour l'affichage
+      const formattedConversations = conversations.map((conv) => {
+        console.log("Traitement de la conversation:", conv);
+        return {
+          matchId: conv.matchId,
+          matchInfo: {
+            _id: conv.matchInfo._id,
+            firstName: conv.matchInfo.firstName,
+            lastName: conv.matchInfo.lastName,
+            profilePicture: conv.matchInfo.profilePicture,
+          },
+          lastMessage: conv.lastMessage,
+          hasUnread: conv.unreadCount > 0,
+          userId: userId,
+        };
       });
 
-      const formattedData = Array.from(conversationsMap.values()).map(
-        (conv) => ({
-          ...conv,
-          hasUnread:
-            conv.unreadCount > 0 && conv.lastMessage.senderId !== userId,
-          userId: userId,
-        })
-      );
+      console.log("Conversations formatées:", formattedConversations);
+      setConversations(formattedConversations);
 
-      formattedData.sort(
-        (a, b) =>
-          new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
-      );
-
-      setConversations(formattedData);
-
-      const hasUnreadMessages = formattedData.some(
-        (conv) => conv.unreadCount > 0 && conv.lastMessage.senderId !== userId
+      // Mettre à jour le badge des messages non lus
+      const hasUnreadMessages = formattedConversations.some(
+        (conv) => conv.hasUnread
       );
       navigation.getParent()?.setParams({ hasUnread: hasUnreadMessages });
     } catch (error) {
-      console.error("Erreur lors de la récupération des conversations:", error);
+      console.error("Erreur détaillée lors de la récupération:", error);
+      console.error("Stack trace:", error.stack);
+      setConversations([]);
     } finally {
       setLoading(false);
     }
@@ -172,43 +171,40 @@ const Conversations = ({ navigation, route }) => {
     return item.matchId;
   };
 
-  const renderConversation = useCallback(
-    ({ item }) => (
-      <TouchableOpacity
-        style={styles.conversationItem}
-        onPress={() => handleConversationPress(item.matchId)}
-      >
-        {item.matchInfo.profilePicture ? (
-          <Image
-            source={{ uri: item.matchInfo.profilePicture }}
-            style={styles.avatar}
-          />
-        ) : (
-          <View style={[styles.avatar, styles.defaultAvatar]}>
-            <MaterialIcons name="person" size={30} color="#666" />
-          </View>
-        )}
-        <View style={styles.conversationContent}>
-          <View style={styles.conversationHeader}>
-            <Text style={styles.name}>
-              {item.matchInfo.firstName} {item.matchInfo.lastName}
-            </Text>
-            <Text style={styles.date}>
-              {formatDate(item.lastMessage.createdAt)}
-            </Text>
-          </View>
-          <View style={styles.messageContainer}>
-            <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.lastMessage.content}
-            </Text>
-            {item.hasUnread &&
-              item.lastMessage.senderId !== userId &&
-              userId && <View style={styles.unreadDot} />}
-          </View>
+  const renderConversation = ({ item }) => (
+    <TouchableOpacity
+      style={styles.conversationItem}
+      onPress={() => navigation.navigate("Chat", { matchId: item.matchId })}
+    >
+      {item.matchInfo.profilePicture ? (
+        <Image
+          source={{ uri: item.matchInfo.profilePicture }}
+          style={styles.avatar}
+        />
+      ) : (
+        <View style={[styles.avatar, styles.defaultAvatar]}>
+          <MaterialIcons name="person" size={30} color="#666" />
         </View>
-      </TouchableOpacity>
-    ),
-    [userId]
+      )}
+      <View style={styles.conversationInfo}>
+        <Text style={styles.name}>
+          {item.matchInfo.firstName} {item.matchInfo.lastName}
+        </Text>
+        <View style={styles.messageContainer}>
+          <Text style={styles.lastMessage} numberOfLines={1}>
+            {item.lastMessage
+              ? item.lastMessage.content
+              : "Commencez la conversation !"}
+          </Text>
+          {item.hasUnread && <View style={styles.unreadDot} />}
+        </View>
+      </View>
+      <Text style={styles.date}>
+        {item.lastMessage
+          ? new Date(item.lastMessage.createdAt).toLocaleDateString()
+          : "Nouveau match"}
+      </Text>
+    </TouchableOpacity>
   );
 
   if (loading) {
@@ -272,13 +268,8 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     marginRight: 15,
   },
-  conversationContent: {
+  conversationInfo: {
     flex: 1,
-  },
-  conversationHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 5,
   },
   name: {
     fontSize: 16,
