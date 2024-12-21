@@ -4,12 +4,13 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { ActivityIndicator, View } from "react-native";
 import { AuthContext } from "../context/AuthContext";
 
-import Home from "../views/screens/Home";
+import TabNavigator from "./TabNavigator";
 import UserProfile from "../views/screens/UserProfile";
 import Matching from "../views/screens/Matching";
 import Login from "../views/screens/Login";
 import Register from "../views/screens/Register";
 import Chat from "../views/screens/Chat";
+import NotificationHandler from "../components/NotificationHandler";
 
 const Stack = createStackNavigator();
 
@@ -26,23 +27,26 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
+      {userToken && <NotificationHandler />}
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
         }}
       >
         {userToken ? (
-          // Écrans authentifiés
           <>
-            <Stack.Screen name="Home" component={Home} />
+            <Stack.Screen name="MainTabs" component={TabNavigator} />
             <Stack.Screen name="UserProfile" component={UserProfile} />
             <Stack.Screen name="Matching" component={Matching} />
             <Stack.Screen name="Chat" component={Chat} />
           </>
         ) : (
-          // Écrans non authentifiés
           <>
-            <Stack.Screen name="Login" component={Login} />
+            <Stack.Screen
+              name="Login"
+              component={Login}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen name="Register" component={Register} />
           </>
         )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,10 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { io } from "socket.io-client";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -19,26 +21,213 @@ const Chat = ({ route, navigation }) => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [matchInfo, setMatchInfo] = useState(null);
+  const socketRef = useRef(null);
+  const [isMatchAccepted, setIsMatchAccepted] = useState(false);
 
   useEffect(() => {
-    fetchMatchInfo();
-    fetchMessages();
+    const initializeChat = async () => {
+      await acceptMatch();
+      await fetchMatchInfo();
+      await fetchMessages();
+      await markMessagesAsRead();
+      connectSocket();
+    };
+
+    initializeChat();
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.emit("leave_chat", matchId);
+        socketRef.current.disconnect();
+      }
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.navigate("ConversationsTab", {
+          screen: "Conversations",
+          params: { refresh: true },
+        });
+      }
+    };
   }, []);
+
+  const connectSocket = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const userId = JSON.parse(atob(token.split(".")[1])).userId;
+      console.log("UserId pour socket:", userId);
+
+      socketRef.current = io(API_URL, {
+        auth: {
+          token: `Bearer ${token}`,
+        },
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+
+      socketRef.current.on("connect", () => {
+        console.log("Socket connected successfully");
+        socketRef.current.emit("join_chat", matchId);
+      });
+
+      socketRef.current.on("new_message", (message) => {
+        console.log("Message reçu:", message);
+        console.log("SenderId du message:", message.senderId);
+        console.log("UserId local:", userId);
+
+        setMessages((prevMessages) => [
+          {
+            ...message,
+            isSender: message.senderId === userId,
+          },
+          ...prevMessages,
+        ]);
+
+        if (message.senderId !== userId) {
+          markMessagesAsRead();
+          const parent = navigation.getParent();
+          if (parent) {
+            parent.emit({
+              type: "newMessage",
+              data: { matchId, senderId: message.senderId },
+            });
+          }
+        }
+      });
+
+      socketRef.current.on("user_joined", (data) => {
+        console.log("Utilisateur rejoint le chat:", data);
+      });
+
+      socketRef.current.on("user_left", (data) => {
+        console.log("Utilisateur a quitté le chat:", data);
+      });
+
+      socketRef.current.on("connect_error", (error) => {
+        console.error("Erreur de connexion socket:", error);
+        Alert.alert(
+          "Erreur de connexion",
+          "Impossible de se connecter au chat. Veuillez réessayer."
+        );
+      });
+
+      socketRef.current.on("error", (error) => {
+        console.error("Erreur socket:", error);
+      });
+
+      socketRef.current.on("disconnect", (reason) => {
+        console.log("Socket déconnecté, raison:", reason);
+        if (reason === "io server disconnect") {
+          // Le serveur a forcé la déconnexion
+          connectSocket(); // Tentative de reconnexion
+        }
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'initialisation du socket:", error);
+      Alert.alert("Erreur", "Impossible d'initialiser la connexion au chat");
+    }
+  };
+
+  const acceptMatch = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      console.log("Tentative d'acceptation du match:", matchId);
+
+      const response = await fetch(
+        `${API_URL}/api/matching/accept/${matchId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const responseText = await response.text();
+      console.log("Réponse brute:", responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Erreur de parsing:", parseError);
+        console.error("Contenu reçu:", responseText);
+        throw new Error("Réponse invalide du serveur");
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Erreur lors de l'acceptation du match"
+        );
+      }
+
+      console.log("Match accepté avec succès:", data);
+      setIsMatchAccepted(true);
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await fetchMatchInfo();
+    } catch (error) {
+      console.error("Erreur détaillée acceptMatch:", error);
+      Alert.alert(
+        "Erreur",
+        "Impossible d'accepter le match. Veuillez réessayer."
+      );
+    }
+  };
 
   const fetchMatchInfo = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
-      const response = await fetch(`${API_URL}/api/matches/${matchId}`, {
+      console.log("Récupération des infos pour le match:", matchId);
+
+      const response = await fetch(`${API_URL}/api/matching/${matchId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
-      const data = await response.json();
-      setMatchInfo(data);
+
+      const responseText = await response.text();
+      console.log("Réponse brute fetchMatchInfo:", responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Erreur de parsing:", parseError);
+        console.error("Contenu reçu:", responseText);
+        throw new Error("Réponse invalide du serveur");
+      }
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          navigation.goBack();
+          throw new Error("Vous n'avez pas accès à cette conversation");
+        } else if (response.status === 404) {
+          throw new Error("Match non trouvé ou inactif");
+        }
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      console.log("Infos du match reçues:", data);
+
+      setMatchInfo({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        age: data.age,
+        profilePicture: data.profilePicture,
+        interests: data.interests,
+      });
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des infos du match:",
         error
+      );
+      Alert.alert(
+        "Erreur",
+        error.message || "Impossible de récupérer les informations du match"
       );
     }
   };
@@ -46,15 +235,33 @@ const Chat = ({ route, navigation }) => {
   const fetchMessages = async () => {
     try {
       const token = await AsyncStorage.getItem("userToken");
+      const userId = JSON.parse(atob(token.split(".")[1])).userId;
+
       const response = await fetch(`${API_URL}/api/messages/${matchId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la récupération des messages");
+      }
+
       const data = await response.json();
-      setMessages(data);
+      console.log("Messages récupérés:", data);
+
+      const formattedMessages = data.map((message) => ({
+        ...message,
+        isSender: message.senderId === userId,
+      }));
+
+      setMessages(formattedMessages);
     } catch (error) {
       console.error("Erreur lors de la récupération des messages:", error);
+      Alert.alert(
+        "Erreur",
+        "Impossible de charger les messages. Veuillez réessayer."
+      );
     }
   };
 
@@ -63,6 +270,11 @@ const Chat = ({ route, navigation }) => {
 
     try {
       const token = await AsyncStorage.getItem("userToken");
+      const messageToSend = newMessage.trim();
+
+      // Vider le champ de message immédiatement pour une meilleure UX
+      setNewMessage("");
+
       const response = await fetch(`${API_URL}/api/messages`, {
         method: "POST",
         headers: {
@@ -71,16 +283,24 @@ const Chat = ({ route, navigation }) => {
         },
         body: JSON.stringify({
           matchId,
-          content: newMessage,
+          content: messageToSend,
         }),
       });
 
-      if (response.ok) {
-        setNewMessage("");
-        fetchMessages(); // Recharger les messages
+      if (!response.ok) {
+        throw new Error("Erreur lors de l'envoi du message");
       }
+
+      // Ne pas ajouter le message ici, il sera reçu via le socket
+      // Le backend enverra le message via socket.io
     } catch (error) {
       console.error("Erreur lors de l'envoi du message:", error);
+      Alert.alert(
+        "Erreur",
+        "Impossible d'envoyer le message. Veuillez réessayer."
+      );
+      // Restaurer le message en cas d'erreur
+      setNewMessage(messageToSend);
     }
   };
 
@@ -92,11 +312,53 @@ const Chat = ({ route, navigation }) => {
       ]}
     >
       <Text style={styles.messageText}>{item.content}</Text>
-      <Text style={styles.messageTime}>
-        {new Date(item.createdAt).toLocaleTimeString()}
+      <Text
+        style={[
+          styles.messageTime,
+          item.isSender ? styles.sentMessageTime : styles.receivedMessageTime,
+        ]}
+      >
+        {new Date(item.createdAt).toLocaleTimeString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
       </Text>
     </View>
   );
+
+  const markMessagesAsRead = async () => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      const response = await fetch(`${API_URL}/api/messages/${matchId}/read`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors du marquage des messages comme lus");
+      }
+
+      console.log("Messages marqués comme lus");
+
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setParams({ hasUnread: false });
+
+        parent.navigate("ConversationsTab", {
+          screen: "Conversations",
+          params: {
+            messageRead: true,
+            matchId: matchId,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors du marquage des messages comme lus:", error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -167,26 +429,44 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     margin: 10,
-    padding: 10,
-    borderRadius: 15,
-    maxWidth: "80%",
+    padding: 12,
+    borderRadius: 20,
+    maxWidth: "75%",
+    minWidth: "20%",
   },
   sentMessage: {
     backgroundColor: "#FF4B6E",
     alignSelf: "flex-end",
+    borderBottomRightRadius: 4,
+    marginLeft: "25%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 20,
   },
   receivedMessage: {
-    backgroundColor: "#333",
+    backgroundColor: "#2A2A2A",
     alignSelf: "flex-start",
+    borderBottomLeftRadius: 4,
+    marginRight: "25%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
   },
   messageText: {
     color: "#FFFFFF",
     fontSize: 16,
+    lineHeight: 20,
   },
   messageTime: {
-    color: "#CCCCCC",
-    fontSize: 12,
-    marginTop: 5,
+    fontSize: 11,
+    marginTop: 4,
+    alignSelf: "flex-end",
+  },
+  sentMessageTime: {
+    color: "rgba(255, 255, 255, 0.7)",
+  },
+  receivedMessageTime: {
+    color: "#999999",
   },
   inputContainer: {
     flexDirection: "row",
