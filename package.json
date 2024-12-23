@@ -18,11 +18,13 @@
     "apprencontre-frontend": "file:",
     "date-fns": "^4.1.0",
     "expo": "~52.0.20",
+    "expo-linear-gradient": "^14.0.1",
     "expo-notifications": "^0.29.11",
     "expo-status-bar": "~2.0.0",
     "react": "18.3.1",
     "react-native": "0.76.5",
     "react-native-gesture-handler": "^2.21.2",
+    "react-native-linear-gradient": "^2.8.3",
     "react-native-safe-area-context": "^5.0.0",
     "react-native-screens": "^4.4.0",
     "socket.io-client": "^4.8.1"
