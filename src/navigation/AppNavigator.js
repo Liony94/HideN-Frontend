@@ -11,6 +11,7 @@ import Login from "../views/screens/Login";
 import Register from "../views/screens/Register";
 import Chat from "../views/screens/Chat";
 import NotificationHandler from "../components/NotificationHandler";
+import UserProfileView from "../views/screens/UserProfileView";
 
 const Stack = createStackNavigator();
 
@@ -39,6 +40,11 @@ const AppNavigator = () => {
             <Stack.Screen name="UserProfile" component={UserProfile} />
             <Stack.Screen name="Matching" component={Matching} />
             <Stack.Screen name="Chat" component={Chat} />
+            <Stack.Screen
+              name="UserProfileView"
+              component={UserProfileView}
+              options={{ headerShown: false }}
+            />
           </>
         ) : (
           <>

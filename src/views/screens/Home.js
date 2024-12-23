@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,22 +6,42 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Image,
+  Dimensions,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { MaterialIcons } from "@expo/vector-icons";
+import DailyMatchModal from "../../components/DailyMatchModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const { width } = Dimensions.get("window");
 
 const Home = () => {
   const navigation = useNavigation();
+  const [showDailyModal, setShowDailyModal] = useState(false);
 
-  const handleStartMatching = () => {
-    navigation.navigate("Matching");
+  useEffect(() => {
+    checkDailyMatch();
+
+    const unsubscribe = navigation.addListener("focus", () => {
+      checkDailyMatch();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const checkDailyMatch = async () => {
+    try {
+      setShowDailyModal(true);
+    } catch (error) {
+      console.error(
+        "Erreur lors de la vérification du match quotidien:",
+        error
+      );
+    }
   };
 
-  const handleGoToProfile = () => {
-    navigation.navigate("UserProfile");
-  };
-
-  const handleGoToConversations = () => {
-    navigation.navigate("Conversations");
+  const handleMatchFound = (match) => {
+    navigation.navigate("Matching", { dailyMatch: match });
   };
 
   return (
@@ -32,34 +52,69 @@ const Home = () => {
       </View>
 
       <View style={styles.mainContent}>
-        <Image
-          source={{
-            uri: "https://cdn-icons-png.flaticon.com/512/6386/6386976.png",
-          }}
-          style={styles.image}
-          resizeMode="contain"
-        />
+        <View style={styles.card}>
+          <MaterialIcons name="favorite" size={60} color="#FF4B6E" />
+          <Text style={styles.cardTitle}>Trouvez votre match</Text>
+          <Text style={styles.cardDescription}>
+            Découvrez des personnes qui partagent vos centres d'intérêt
+          </Text>
+        </View>
 
-        <Text style={styles.description}>
-          Découvrez des conversations authentiques dans l'anonymat total
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>1K+</Text>
+            <Text style={styles.statLabel}>Utilisateurs</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>500+</Text>
+            <Text style={styles.statLabel}>Matchs</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>98%</Text>
+            <Text style={styles.statLabel}>Satisfaits</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.mainButton}
+          onPress={() => navigation.navigate("Matching")}
+        >
+          <MaterialIcons name="search" size={24} color="#FFFFFF" />
+          <Text style={styles.mainButtonText}>Commencer à matcher</Text>
+        </TouchableOpacity>
+
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate("UserProfile")}
+          >
+            <MaterialIcons name="person" size={24} color="#FF4B6E" />
+            <Text style={styles.actionButtonText}>Mon Profil</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate("Matches")}
+          >
+            <MaterialIcons name="favorite-border" size={24} color="#FF4B6E" />
+            <Text style={styles.actionButtonText}>Mes Matchs</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Rencontrez l'inattendu en toute sécurité
         </Text>
       </View>
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.startButton}
-          onPress={handleStartMatching}
-        >
-          <Text style={styles.buttonText}>Commencer une conversation</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={handleGoToProfile}
-        >
-          <Text style={styles.profileButtonText}>Mon profil</Text>
-        </TouchableOpacity>
-      </View>
+      <DailyMatchModal
+        visible={showDailyModal}
+        onClose={() => setShowDailyModal(false)}
+        onMatchFound={handleMatchFound}
+      />
     </SafeAreaView>
   );
 };
@@ -81,66 +136,104 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#888888",
   },
   mainContent: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  image: {
-    width: 200,
-    height: 200,
-    marginBottom: 30,
+  card: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 20,
+    padding: 30,
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
-  description: {
-    fontSize: 18,
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
     color: "#FFFFFF",
+    marginTop: 15,
+    marginBottom: 10,
+  },
+  cardDescription: {
+    fontSize: 16,
+    color: "#CCCCCC",
     textAlign: "center",
-    marginBottom: 30,
     lineHeight: 24,
   },
-  buttonContainer: {
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 15,
     padding: 20,
+    marginBottom: 20,
   },
-  startButton: {
-    backgroundColor: "#FF4B6E",
-    paddingVertical: 15,
-    borderRadius: 25,
+  statItem: {
+    flex: 1,
     alignItems: "center",
-    marginBottom: 15,
   },
-  buttonText: {
+  statNumber: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#FF4B6E",
+    marginBottom: 5,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "#CCCCCC",
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    marginHorizontal: 10,
+  },
+  mainButton: {
+    backgroundColor: "#FF4B6E",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 30,
+    marginBottom: 20,
+  },
+  mainButtonText: {
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "600",
+    marginLeft: 10,
   },
-  conversationsButton: {
-    backgroundColor: "#2A2A2A",
-    paddingVertical: 15,
-    borderRadius: 25,
+  quickActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 15,
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 75, 110, 0.1)",
+    padding: 15,
+    borderRadius: 15,
   },
-  conversationsButtonText: {
+  actionButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
+    marginLeft: 8,
   },
-  profileButton: {
-    backgroundColor: "transparent",
-    paddingVertical: 15,
-    borderRadius: 25,
+  footer: {
+    padding: 20,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#FF4B6E",
   },
-  profileButtonText: {
-    color: "#FF4B6E",
-    fontSize: 16,
-    fontWeight: "600",
+  footerText: {
+    color: "#999999",
+    fontSize: 14,
   },
 });
 
