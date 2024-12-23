@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,11 +10,39 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialIcons } from "@expo/vector-icons";
+import DailyMatchModal from "../../components/DailyMatchModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
 const Home = () => {
   const navigation = useNavigation();
+  const [showDailyModal, setShowDailyModal] = useState(false);
+
+  useEffect(() => {
+    checkDailyMatch();
+
+    const unsubscribe = navigation.addListener("focus", () => {
+      checkDailyMatch();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const checkDailyMatch = async () => {
+    try {
+      setShowDailyModal(true);
+    } catch (error) {
+      console.error(
+        "Erreur lors de la vérification du match quotidien:",
+        error
+      );
+    }
+  };
+
+  const handleMatchFound = (match) => {
+    navigation.navigate("Matching", { dailyMatch: match });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -81,6 +109,12 @@ const Home = () => {
           Rencontrez l'inattendu en toute sécurité
         </Text>
       </View>
+
+      <DailyMatchModal
+        visible={showDailyModal}
+        onClose={() => setShowDailyModal(false)}
+        onMatchFound={handleMatchFound}
+      />
     </SafeAreaView>
   );
 };
