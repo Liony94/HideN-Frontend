@@ -15,6 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import DailyMatchModal from "../../components/DailyMatchModal";
 
 const { width, height } = Dimensions.get("window");
 const CARD_HEIGHT = height * 0.6;
@@ -55,6 +56,7 @@ const Matching = () => {
   const [error, setError] = useState(null);
   const [cardScale] = useState(new Animated.Value(0.9));
   const [cardOpacity] = useState(new Animated.Value(0));
+  const [showDailyMatch, setShowDailyMatch] = useState(false);
 
   useEffect(() => {
     if (currentMatch) {
@@ -144,6 +146,11 @@ const Matching = () => {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const handleMatchFound = (match) => {
+    // Logique de gestion du match trouvé
+    console.log("Match trouvé:", match);
   };
 
   return (
@@ -275,6 +282,13 @@ const Matching = () => {
           </View>
         )}
       </View>
+
+      <DailyMatchModal
+        visible={showDailyMatch}
+        onClose={() => setShowDailyMatch(false)}
+        onMatchFound={handleMatchFound}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 };

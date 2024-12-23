@@ -14,10 +14,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import { PREDEFINED_INTERESTS } from "../constants/interests";
 import { API_URL } from "../config/api.config";
+import { useNavigation } from "@react-navigation/native";
 
 const DEFAULT_PROFILE_IMAGE = "https://via.placeholder.com/150";
 
 const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
+  const navigation = useNavigation();
   const [step, setStep] = useState(1); // 1: Catégories, 2: Intérêts, 3: Recherche/Résultat
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -174,6 +176,9 @@ const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
                 onPress={() => {
                   onMatchFound(selectedMatch);
                   onClose();
+                  navigation.navigate("UserProfileView", {
+                    userId: selectedMatch._id,
+                  });
                 }}
               >
                 <Text style={styles.buttonText}>Voir le profil</Text>
