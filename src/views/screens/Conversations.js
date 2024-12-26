@@ -5,13 +5,14 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
-  StyleSheet,
   SafeAreaView,
   ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
+import styles from "../../assets/styles/conversationsStyles";
+import theme from "../../assets/styles/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const DEFAULT_AVATAR = "https://via.placeholder.com/50";
@@ -192,7 +193,7 @@ const Conversations = ({ navigation, route }) => {
         />
       ) : (
         <View style={[styles.avatar, styles.defaultAvatar]}>
-          <MaterialIcons name="person" size={30} color="#666" />
+          <MaterialIcons name="person" size={30} color={theme.colors.textTertiary} />
         </View>
       )}
       <View style={styles.conversationInfo}>
@@ -219,7 +220,7 @@ const Conversations = ({ navigation, route }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF4B6E" />
+        <ActivityIndicator size="large" color={theme.colors.secondary} />
       </View>
     );
   }
@@ -240,78 +241,5 @@ const Conversations = ({ navigation, route }) => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#1A1A1A",
-  },
-  header: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#1A1A1A",
-  },
-  listContainer: {
-    paddingVertical: 10,
-  },
-  conversationItem: {
-    flexDirection: "row",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-  },
-  conversationInfo: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  date: {
-    fontSize: 12,
-    color: "#999",
-  },
-  messageContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  lastMessage: {
-    flex: 1,
-    fontSize: 14,
-    color: "#999",
-    marginRight: 10,
-  },
-  unreadDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#FF4B6E",
-    marginLeft: 8,
-  },
-  defaultAvatar: {
-    backgroundColor: "#333",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});
 
 export default Conversations;

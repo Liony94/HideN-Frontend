@@ -5,6 +5,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Home from "../views/screens/Home";
 import Matches from "../views/screens/Matches";
+import theme from "../assets/styles/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 const Tab = createBottomTabNavigator();
@@ -76,9 +77,13 @@ const TabNavigator = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: "#1A1A1A" },
-        tabBarActiveTintColor: "#FF4B6E",
-        tabBarInactiveTintColor: "#888888",
+        tabBarStyle: {
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.border,
+          borderTopWidth: 1,
+        },
+        tabBarActiveTintColor: theme.colors.secondary,
+        tabBarInactiveTintColor: theme.colors.textTertiary,
       }}
     >
       <Tab.Screen
@@ -105,7 +110,7 @@ const TabNavigator = () => {
                     position: "absolute",
                     right: -6,
                     top: -3,
-                    backgroundColor: "#4CAF50",
+                    backgroundColor: theme.colors.success,
                     borderRadius: 6,
                     width: 12,
                     height: 12,

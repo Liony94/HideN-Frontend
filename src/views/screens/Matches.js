@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
+import styles from "../../assets/styles/matchesStyles";
+import theme from "../../assets/styles/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -198,7 +200,11 @@ const Matches = ({ navigation }) => {
             />
           ) : (
             <View style={[styles.avatar, styles.defaultAvatar]}>
-              <MaterialIcons name="person" size={30} color="#666" />
+              <MaterialIcons
+                name="person"
+                size={30}
+                color={theme.colors.textTertiary}
+              />
             </View>
           )}
         </View>
@@ -280,7 +286,7 @@ const Matches = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF4B6E" />
+        <ActivityIndicator size="large" color={theme.colors.secondary} />
       </View>
     );
   }
@@ -340,135 +346,5 @@ const Matches = ({ navigation }) => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#1A1A1A",
-  },
-  header: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  tabs: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: "center",
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#FF4B6E",
-  },
-  tabText: {
-    color: "#999",
-    fontSize: 16,
-  },
-  activeTabText: {
-    color: "#FF4B6E",
-    fontWeight: "600",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  listContainer: {
-    padding: 10,
-  },
-  matchItem: {
-    flexDirection: "row",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-    alignItems: "center",
-  },
-  avatarContainer: {
-    marginRight: 15,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  defaultAvatar: {
-    backgroundColor: "#333",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  matchInfo: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 4,
-  },
-  status: {
-    fontSize: 14,
-    color: "#999",
-    marginTop: 4,
-  },
-  actions: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  acceptButton: {
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  declineButton: {
-    backgroundColor: "#FF4B6E",
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  emptyText: {
-    color: "#999",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  acceptedMatch: {
-    backgroundColor: "#222",
-  },
-  chatIcon: {
-    padding: 10,
-    marginLeft: 10,
-  },
-  unreadDot: {
-    position: "absolute",
-    right: 40, // Ajuster selon le design
-    top: "50%",
-    transform: [{ translateY: -3 }],
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#4CAF50",
-  },
-});
 
 export default Matches;

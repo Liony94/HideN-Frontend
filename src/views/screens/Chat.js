@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   FlatList,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { io } from "socket.io-client";
+import styles from "../../assets/styles/chatStyles";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -383,101 +383,5 @@ const Chat = ({ route, navigation }) => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#1A1A1A",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-  },
-  backButton: {
-    color: "#FF4B6E",
-    fontSize: 16,
-  },
-  headerTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  headerSpace: {
-    width: 50,
-  },
-  chatContainer: {
-    flex: 1,
-  },
-  messageContainer: {
-    margin: 10,
-    padding: 12,
-    borderRadius: 20,
-    maxWidth: "75%",
-    minWidth: "20%",
-  },
-  sentMessage: {
-    backgroundColor: "#FF4B6E",
-    alignSelf: "flex-end",
-    borderBottomRightRadius: 4,
-    marginLeft: "25%",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderBottomLeftRadius: 20,
-  },
-  receivedMessage: {
-    backgroundColor: "#2A2A2A",
-    alignSelf: "flex-start",
-    borderBottomLeftRadius: 4,
-    marginRight: "25%",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  messageText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  messageTime: {
-    fontSize: 11,
-    marginTop: 4,
-    alignSelf: "flex-end",
-  },
-  sentMessageTime: {
-    color: "rgba(255, 255, 255, 0.7)",
-  },
-  receivedMessageTime: {
-    color: "#999999",
-  },
-  inputContainer: {
-    flexDirection: "row",
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#333",
-  },
-  input: {
-    flex: 1,
-    backgroundColor: "#333",
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginRight: 10,
-    color: "#FFFFFF",
-  },
-  sendButton: {
-    backgroundColor: "#FF4B6E",
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    justifyContent: "center",
-  },
-  sendButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
-});
 
 export default Chat;

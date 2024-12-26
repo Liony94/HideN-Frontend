@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   Image,
   ScrollView,
   TouchableOpacity,
@@ -12,6 +11,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { API_URL } from "../../config/api.config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import styles from "../../assets/styles/userProfileViewStyles";
 
 const DEFAULT_PROFILE_IMAGE = "https://via.placeholder.com/150";
 
@@ -179,151 +179,5 @@ const UserProfileView = ({ route, navigation }) => {
     </ScrollView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#1A1A1A",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#1A1A1A",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#1A1A1A",
-    padding: 20,
-  },
-  errorText: {
-    color: "#FF4B6E",
-    fontSize: 16,
-    textAlign: "center",
-  },
-  header: {
-    padding: 20,
-  },
-  backButton: {
-    padding: 10,
-  },
-  profileContainer: {
-    alignItems: "center",
-    padding: 20,
-  },
-  profileImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    marginBottom: 20,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 10,
-  },
-  bio: {
-    fontSize: 16,
-    color: "#CCCCCC",
-    textAlign: "center",
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  infoSection: {
-    width: "100%",
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 10,
-  },
-  interestsList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  interestTag: {
-    backgroundColor: "rgba(255, 75, 110, 0.1)",
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-  },
-  interestText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-  },
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    width: "100%",
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    minWidth: 140,
-    justifyContent: "center",
-  },
-  blockButton: {
-    backgroundColor: "#FF4B6E",
-  },
-  unblockButton: {
-    backgroundColor: "#4CAF50",
-  },
-  reportButton: {
-    backgroundColor: "#FF9800",
-  },
-  actionButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "#2A2A2A",
-    borderRadius: 15,
-    padding: 20,
-    width: "80%",
-    alignItems: "center",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 15,
-  },
-  modalText: {
-    fontSize: 16,
-    color: "#CCCCCC",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  modalButton: {
-    backgroundColor: "#FF4B6E",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-  },
-  modalButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
 
 export default UserProfileView;

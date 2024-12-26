@@ -2,7 +2,6 @@ import React, { useState, useContext } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   SafeAreaView,
@@ -12,6 +11,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthContext } from "../../context/AuthContext";
+import styles from "../../assets/styles/registerStyles";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.56.1:3000";
 
@@ -169,59 +169,5 @@ const Register = () => {
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#1A1A1A",
-  },
-  header: {
-    alignItems: "center",
-    paddingTop: 40,
-    paddingBottom: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 20,
-    color: "#FFFFFF",
-    marginBottom: 30,
-  },
-  form: {
-    padding: 20,
-  },
-  input: {
-    backgroundColor: "#2A2A2A",
-    borderRadius: 25,
-    padding: 15,
-    marginBottom: 15,
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
-  registerButton: {
-    backgroundColor: "#FF4B6E",
-    paddingVertical: 15,
-    borderRadius: 25,
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  loginButton: {
-    alignItems: "center",
-    padding: 10,
-  },
-  loginButtonText: {
-    color: "#FF4B6E",
-    fontSize: 16,
-  },
-});
 
 export default Register;

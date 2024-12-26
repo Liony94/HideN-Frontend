@@ -3,10 +3,8 @@ import {
   Modal,
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  FlatList,
   ScrollView,
   Image,
 } from "react-native";
@@ -15,6 +13,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { PREDEFINED_INTERESTS } from "../constants/interests";
 import { API_URL } from "../config/api.config";
 import { useNavigation } from "@react-navigation/native";
+import styles from "../assets/styles/dailyMatchModalStyles";
+import theme from "../assets/styles/theme";
 
 const DEFAULT_PROFILE_IMAGE = "https://via.placeholder.com/150";
 
@@ -26,6 +26,7 @@ const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
   const [selectedInterest, setSelectedInterest] = useState(null);
   const [error, setError] = useState(null);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(24 * 60 * 60); // 24 heures en secondes
 
   useEffect(() => {
     if (visible) {
@@ -35,6 +36,28 @@ const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
       setError(null);
     }
   }, [visible]);
+
+  useEffect(() => {
+    let timer;
+    if (selectedMatch) {
+      timer = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 0) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [selectedMatch]);
+
+  const formatTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  };
 
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
@@ -98,7 +121,11 @@ const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
             onPress={() => handleCategorySelect(category)}
           >
             <Text style={styles.categoryText}>{category}</Text>
-            <MaterialIcons name="chevron-right" size={24} color="#FF4B6E" />
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={theme.colors.secondary}
+            />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -135,7 +162,7 @@ const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
     <View style={styles.loadingContainer}>
       {loading ? (
         <>
-          <ActivityIndicator size="large" color="#FF4B6E" />
+          <ActivityIndicator size="large" color={theme.colors.secondary} />
           <Text style={styles.loadingText}>Recherche de votre match...</Text>
         </>
       ) : error ? (
@@ -150,7 +177,7 @@ const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
         </>
       ) : (
         <View style={styles.matchInfoContainer}>
-          <Text style={styles.matchTitle}>Match trouvé !</Text>
+          <Text style={styles.matchTitle}>Match du Jour !</Text>
           <View style={styles.matchCard}>
             <Image
               source={
@@ -167,28 +194,27 @@ const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
               <Text style={styles.matchBio}>{selectedMatch.bio}</Text>
             )}
             <Text style={styles.matchInterest}>
-              Centre d'intérêt commun : {selectedInterest}
+              Vous partagez un intérêt : {selectedInterest}
             </Text>
 
-            <View style={styles.matchButtons}>
-              <TouchableOpacity
-                style={[styles.matchButton, styles.acceptButton]}
-                onPress={() => {
-                  onMatchFound(selectedMatch);
-                  onClose();
-                  navigation.navigate("UserProfileView", {
-                    userId: selectedMatch._id,
-                  });
-                }}
-              >
-                <Text style={styles.buttonText}>Voir le profil</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.matchButton, styles.declineButton]}
-                onPress={() => setStep(1)}
-              >
-                <Text style={styles.buttonText}>Chercher un autre match</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewProfileButton}
+              onPress={() => {
+                onMatchFound(selectedMatch);
+                onClose();
+                navigation.navigate("UserProfileView", {
+                  userId: selectedMatch._id,
+                });
+              }}
+            >
+              <Text style={styles.viewProfileText}>Voir le profil</Text>
+            </TouchableOpacity>
+
+            <View style={styles.timerContainer}>
+              <Text style={styles.timerText}>
+                Prochain match disponible dans
+              </Text>
+              <Text style={styles.timerValue}>{formatTime(timeRemaining)}</Text>
             </View>
           </View>
         </View>
@@ -205,189 +231,20 @@ const DailyMatchModal = ({ visible, onClose, onMatchFound }) => {
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <MaterialIcons
+              name="close"
+              size={24}
+              style={styles.closeButtonIcon}
+            />
+          </TouchableOpacity>
           {step === 1 && renderStep1()}
           {step === 2 && renderStep2()}
           {step === 3 && renderStep3()}
-
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.buttonText}>Fermer</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    backgroundColor: "#1A1A1A",
-    borderRadius: 20,
-    padding: 20,
-    width: "90%",
-    maxHeight: "80%",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#CCCCCC",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  scrollView: {
-    maxHeight: 400,
-  },
-  categoryButton: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#2A2A2A",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  categoryText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "500",
-  },
-  interestButton: {
-    backgroundColor: "#2A2A2A",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  selectedInterestButton: {
-    backgroundColor: "#FF4B6E",
-    transform: [{ scale: 1.02 }],
-  },
-  interestText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    marginBottom: 15,
-  },
-  backButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    marginLeft: 10,
-  },
-  loadingContainer: {
-    padding: 20,
-    alignItems: "center",
-  },
-  loadingText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    marginTop: 10,
-  },
-  errorText: {
-    color: "#FF4B6E",
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 15,
-  },
-  retryButton: {
-    backgroundColor: "#FF4B6E",
-    padding: 15,
-    borderRadius: 10,
-    width: "100%",
-    alignItems: "center",
-  },
-  closeButton: {
-    backgroundColor: "#FF4B6E",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 20,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  matchInfoContainer: {
-    alignItems: "center",
-    padding: 20,
-  },
-  matchTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 20,
-  },
-  matchCard: {
-    backgroundColor: "#2A2A2A",
-    borderRadius: 15,
-    padding: 20,
-    width: "100%",
-    alignItems: "center",
-  },
-  matchImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 15,
-  },
-  matchName: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 10,
-  },
-  matchBio: {
-    fontSize: 16,
-    color: "#CCCCCC",
-    textAlign: "center",
-    marginBottom: 15,
-  },
-  matchInterest: {
-    fontSize: 16,
-    color: "#FF4B6E",
-    marginBottom: 20,
-  },
-  matchButtons: {
-    width: "100%",
-    gap: 10,
-  },
-  matchButton: {
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  acceptButton: {
-    backgroundColor: "#FF4B6E",
-  },
-  declineButton: {
-    backgroundColor: "#2A2A2A",
-    borderWidth: 1,
-    borderColor: "#FF4B6E",
-  },
-});
 
 export default DailyMatchModal;
